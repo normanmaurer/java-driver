@@ -22,6 +22,9 @@ import com.datastax.driver.core.Statement;
 /**
  * The policy that decides if the driver will send speculative queries to the next hosts when the current host takes too
  * long to respond.
+ * <p>
+ * Note that only idempotent statements will be speculatively retried, see
+ * {@link com.datastax.driver.core.Statement#isIdempotent()} for more information.
  */
 public interface SpeculativeExecutionPolicy {
     /**
