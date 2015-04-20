@@ -70,7 +70,8 @@ class RequestHandler {
 
     public RequestHandler(SessionManager manager, Callback callback, Statement statement) {
         this.id = Long.toString(System.identityHashCode(this));
-        logger.trace("[{}] {}", id, statement);
+        if(logger.isTraceEnabled())
+            logger.trace("[{}] {}", id, statement);
         this.manager = manager;
         this.callback = callback;
         this.scheduler = manager.cluster.manager.connectionFactory.timer;
@@ -112,7 +113,8 @@ class RequestHandler {
     private void scheduleExecution(long delayMillis) {
         if (isDone.get() || delayMillis <= 0)
             return;
-        logger.trace("[{}] Schedule next speculative execution in {} ms", id, delayMillis);
+        if(logger.isTraceEnabled())
+            logger.trace("[{}] Schedule next speculative execution in {} ms", id, delayMillis);
         scheduledExecutions.add(scheduler.newTimeout(newExecutionTask, delayMillis, TimeUnit.MILLISECONDS));
     }
 
@@ -148,10 +150,13 @@ class RequestHandler {
 
     private void setFinalResult(SpeculativeExecution execution, Connection connection, Message.Response response) {
         if (!isDone.compareAndSet(false, true)) {
-            logger.trace("[{}] Got beaten to setting the result", execution.id);
+            if(logger.isTraceEnabled())
+                logger.trace("[{}] Got beaten to setting the result", execution.id);
             return;
         }
-        logger.trace("[{}] Setting final result", execution.id);
+
+        if(logger.isTraceEnabled())
+            logger.trace("[{}] Setting final result", execution.id);
 
         cancelPendingExecutions(execution);
 
@@ -176,10 +181,13 @@ class RequestHandler {
 
     private void setFinalException(SpeculativeExecution execution, Connection connection, Exception exception) {
         if (!isDone.compareAndSet(false, true)) {
-            logger.trace("[{}] Got beaten to setting final exception", execution.id);
+            if(logger.isTraceEnabled())
+                logger.trace("[{}] Got beaten to setting final exception", execution.id);
             return;
         }
-        logger.trace("[{}] Setting final exception", execution.id);
+
+        if(logger.isTraceEnabled())
+            logger.trace("[{}] Setting final exception", execution.id);
 
         cancelPendingExecutions(execution);
 
@@ -241,14 +249,16 @@ class RequestHandler {
         SpeculativeExecution(int position) {
             this.id = RequestHandler.this.id + "-" + position;
             this.queryStateRef = new AtomicReference<QueryState>(QueryState.INITIAL);
-            logger.debug("[{}] Starting", id);
+            if(logger.isTraceEnabled())
+                logger.trace("[{}] Starting", id);
         }
 
         void sendRequest() {
             try {
                 while (!isDone.get() && queryPlan.hasNext() && !queryStateRef.get().isCancelled()) {
                     Host host = queryPlan.next();
-                    logger.trace("[{}] Querying node {}", id, host);
+                    if(logger.isTraceEnabled())
+                        logger.trace("[{}] Querying node {}", id, host);
                     if (query(host))
                         return;
                 }
@@ -366,14 +376,16 @@ class RequestHandler {
                 if (previous.isCancelled()) {
                     return;
                 } else if (previous.inProgress && queryStateRef.compareAndSet(previous, QueryState.CANCELLED_WHILE_IN_PROGRESS)) {
-                    logger.trace("[{}] Cancelled while in progress", id);
+                    if(logger.isTraceEnabled())
+                        logger.trace("[{}] Cancelled while in progress", id);
                     // The connectionHandler should be non-null, but we might miss the update if we're racing with write().
                     // If it's still null, this will be handled by re-checking queryStateRef at the end of write().
                     if (connectionHandler != null)
                         connectionHandler.cancelHandler();
                     return;
                 } else if (!previous.inProgress && queryStateRef.compareAndSet(previous, QueryState.CANCELLED_WHILE_COMPLETE)) {
-                    logger.trace("[{}] Cancelled while complete", id);
+                    if(logger.isTraceEnabled())
+                        logger.trace("[{}] Cancelled while complete", id);
                     return;
                 }
             }
