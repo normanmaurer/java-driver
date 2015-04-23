@@ -233,6 +233,7 @@ class RequestHandler {
      */
     class SpeculativeExecution implements Connection.ResponseCallback {
         final String id;
+        private final int position;
         private volatile Host current;
         private volatile ConsistencyLevel retryConsistencyLevel;
         private final AtomicReference<QueryState> queryStateRef;
@@ -247,6 +248,7 @@ class RequestHandler {
         private volatile Connection.ResponseHandler connectionHandler;
 
         SpeculativeExecution(int position) {
+            this.position = position;
             this.id = RequestHandler.this.id + "-" + position;
             this.queryStateRef = new AtomicReference<QueryState>(QueryState.INITIAL);
             if(logger.isTraceEnabled())
@@ -393,10 +395,12 @@ class RequestHandler {
 
         @Override
         public Message.Request request() {
-
             Message.Request request = callback.request();
+            // Regenerate the request if retrying or if a new speculative execution is being created.
             if (retryConsistencyLevel != null && retryConsistencyLevel != request.consistency())
                 request = manager.makeRequestMessage(statement, retryConsistencyLevel, request.consistency(), request.pagingState());
+            else if(position > 1)
+                request = manager.makeRequestMessage(statement, request.pagingState());
             return request;
         }
 
